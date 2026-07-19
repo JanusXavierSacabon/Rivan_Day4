@@ -421,7 +421,7 @@ net use x: \\10.k.1.10\c$
 Devices:
 - 2x CSR1000v
 - 1x NetOps
-- 2x TinyCore (yvm.ova)
+- 3x TinyCore (yvm.ova)
 
 CSR1000v:
   Name: UTM-PH
@@ -452,6 +452,13 @@ NetOps:
   | NetAdapter 3 | VMNet3             |
   | NetAdapter 4 | Bridge (Replicate) |
 
+TinyCore (yvm.ova):
+  Name: BLDG-PH
+  
+  | NetAdapter   |                    |
+  | ---          | ---                |
+  | NetAdapter   | VMNet3             |
+  
 TinyCore (yvm.ova):
   Name: BLDG-JP-1
   
@@ -488,7 +495,7 @@ conf t
   ip add 192.168.102.11 255.255.255.0
   no shut
  int g3
-  ip add 11.11.11.113 255.255.255.224
+  ip add 10.11.11.113 255.255.255.224
   no shut
  !
  username admin privilege 15 secret pass
@@ -522,8 +529,8 @@ conf t
   ip add 192.168.102.12 255.255.255.0
   no shut
  int g3
-  ip add 21.21.21.213 255.255.255.240
-  ip add 22.22.22.223 255.255.255.192 secondary
+  ip add 10.21.21.213 255.255.255.240
+  ip add 10.22.22.223 255.255.255.192 secondary
   no shut
  !
  username admin privilege 15 secret pass
@@ -538,11 +545,23 @@ wr
 <br>
 
 ~~~
+!@BLDG-PH
+sudo su
+hostname BLDG-PH
+ifconfig eth0 10.11.11.101 netmask 255.255.255.224 up
+route add default gw 10.11.11.113
+ping 10.11.11.113
+~~~
+
+<br>
+
+~~~
 !@BLDG-JP-1
 sudo su
-ifconfig eth0 21.21.21.211 netmask 255.255.255.240 up
-route add default gw 21.21.21.213
-ping 21.21.21.213
+hostname BLDG-JP-1
+ifconfig eth0 10.21.21.211 netmask 255.255.255.240 up
+route add default gw 10.21.21.213
+ping 10.21.21.213
 ~~~
 
 <br>
@@ -550,9 +569,10 @@ ping 21.21.21.213
 ~~~
 !@BLDG-JP-2
 sudo su
-ifconfig eth0 22.22.22.221 netmask 255.255.255.192 up
-route add default gw 22.22.22.223
-ping 22.22.22.223
+hostname BLDG-JP-2
+ifconfig eth0 10.22.22.221 netmask 255.255.255.192 up
+route add default gw 10.22.22.223
+ping 10.22.22.223
 ~~~
 
 <br>
@@ -582,7 +602,7 @@ ip -br link
 
 3. Modify Interface IP
 VMNet2:  192.168.102.6/24
-VMNet3:  11.11.11.100/27
+VMNet3:  10.11.11.100/27
 Bridged: 10.#$34T#.1.6/24
 
 <br>
@@ -590,7 +610,7 @@ Bridged: 10.#$34T#.1.6/24
 ~~~
 !@NetOps-PH
 ifconfig ens192 192.168.102.6 netmask 255.255.255.0 up
-ifconfig ens224 11.11.11.100 netmask 255.255.255.224 up
+ifconfig ens224 10.11.11.100 netmask 255.255.255.224 up
 ifconfig ens256 10.#$34T#.1.6 netmask 255.255.255.0 up
 ~~~
 
@@ -626,41 +646,17 @@ ipv4.addresses 192.168.102.6/24 \
 autoconnect yes
 
 nmcli connection up VMNET2
-~~~
 
-<br>
-
-Verify:
-~~~
-!@NetOps-PH
-ip -4 addr
-
-nmcli connection show
-netstat -rn
-~~~
-
-<br>
-
-### Provide Connections for VMNet3 & and Bridge Connections
-VMNet3:
-~~~
-!@NetOps-PH
 nmcli connection add \
 type ethernet \
 con-name VMNET3 \
 ifname ens224 \
 ipv4.method manual \
-ipv4.addresses 11.11.11.100/27 \
+ipv4.addresses 10.11.11.100/27 \
 autoconnect yes
 
 nmcli connection up VMNET3
-~~~
 
-<br>
-
-Bridged:
-~~~
-!@NetOps-PH
 nmcli connection add \
 type ethernet \
 con-name BRIDGED \
@@ -670,16 +666,10 @@ ipv4.addresses 10.#$34T#.1.6/24 \
 autoconnect yes
 
 nmcli connection up BRIDGED
-~~~
 
-<br>
-
-4. Routing
-~~~
-!@NetOps-PH
 ip route add 10.0.0.0/8 via 10.#$34T#.1.4 dev ens256
 ip route add 200.0.0.0/24 via 10.#$34T#.1.4 dev ens256
-ip route add 0.0.0.0/0 via 11.11.11.113 dev ens224
+ip route add 0.0.0.0/0 via 10.11.11.113 dev ens224
 ~~~
 
 
@@ -872,8 +862,8 @@ conf t
   tunnel destination 208.8.8.12
   tunnel protection ipsec profile WEBUI-IPSEC-PROFILE-Tunnel1
   exit
- ip route 22.22.22.192 255.255.255.192 Tunnel1
- ip route 21.21.21.208 255.255.255.240 Tunnel1
+ ip route 10.22.22.192 255.255.255.192 Tunnel1
+ ip route 10.21.21.208 255.255.255.240 Tunnel1
  end
 ~~~
 
@@ -920,7 +910,7 @@ conf t
   tunnel destination 208.8.8.11
   tunnel protection ipsec profile WEBUI-IPSEC-PROFILE-Tunnel1
   exit
- ip route 11.11.11.96 255.255.255.224 Tunnel1
+ ip route 10.11.11.96 255.255.255.224 Tunnel1
  end
 ~~~
 
@@ -931,8 +921,8 @@ conf t
 ~~~
 !@UTM-PH
 conf t
- ip route 22.22.22.192 255.255.255.192 208.8.8.12
- ip route 21.21.21.208 255.255.255.240 208.8.8.12
+ ip route 10.22.22.192 255.255.255.192 208.8.8.12
+ ip route 10.21.21.208 255.255.255.240 208.8.8.12
  end
 ~~~
 
@@ -941,7 +931,7 @@ conf t
 ~~~
 !@UTM-JP
 conf t
- ip route 11.11.11.96 255.255.255.224 208.8.8.11
+ ip route 10.11.11.96 255.255.255.224 208.8.8.11
  end
 ~~~
 
@@ -1101,8 +1091,6 @@ NAT:
 conf t
  int g1
   ip nat outside
- int g2
-  ip nat inside
  int g3
   ip nat inside
   end
@@ -1115,8 +1103,8 @@ conf t
 !@UTM-PH
 conf t
  ip access-list extended NAT
-  deny ip 11.11.11.96 0.0.0.31 21.21.21.208 0.0.0.15
-  deny ip 11.11.11.96 0.0.0.31 22.22.22.192 0.0.0.63
+  deny ip 10.11.11.96 0.0.0.31 10.21.21.208 0.0.0.15
+  deny ip 10.11.11.96 0.0.0.31 10.22.22.192 0.0.0.63
   permit ip any any
   end
 ~~~
@@ -1127,8 +1115,8 @@ conf t
 !@UTM-JP
 conf t
  ip access-list extended NAT
-  deny ip 21.21.21.208 0.0.0.15 11.11.11.96 0.0.0.31 
-  deny ip 22.22.22.192 0.0.0.63 11.11.11.96 0.0.0.31 
+  deny ip 10.21.21.208 0.0.0.15 10.11.11.96 0.0.0.31 
+  deny ip 10.22.22.192 0.0.0.63 10.11.11.96 0.0.0.31 
   permit ip any any
   end
 ~~~
@@ -1168,7 +1156,7 @@ vi /etc/resolv.conf
 Forward Proxy
 ~~~
 !@BLDG-JP-1
-ssh -l root 11.11.11.100
+ssh -l root 10.11.11.100
 
 > (yes/no) yes
 ~~~
@@ -1178,6 +1166,135 @@ ssh -l root 11.11.11.100
 
 ---
 &nbsp;
+
+## Syslogs
+
+~~~
+!@UTM-PH
+conf t
+ service timestamps log datetime msec
+ service sequence-numbers
+ !
+ archive
+  log config
+   notify syslog
+   exit
+  exit
+ ip nat log translations syslog bind-only 
+ !
+ logging host 192.168.102.133 transport udp port 9001
+ logging source-interface g2
+ logging on
+end
+~~~
+
+
+<br>
+<br>
+
+---
+&nbsp;
+
+
+### Log Severity Levels
+
+*log.level : "informational"  or log.level : "notification" or log.level : "warning" or log.level : "error" or log.level : "critical" or log.level : "alert" or log.level : "emergency"*
+
+
+~~~
+!@R4
+conf t
+ service timestamps log datetime msec
+ service sequence-numbers
+ logging host 208.8.8.133
+ logging source-interface e3/3
+ logging on
+ logging facility local7
+ !
+ logging trap 6
+end
+~~~
+
+<br>
+
+__Track Logins__
+~~~
+!@R4
+conf t
+ username admin priv 15 secret pass
+ ip domain name SYSLOG.COM
+ crypto key generate rsa modulus 2048 
+ ip ssh version 2
+ !
+ line vty 0 4
+  transport input all
+  login local
+  login on-success log
+  login on-failure log
+  end
+~~~
+
+
+<br>
+<br>
+
+---
+&nbsp;
+
+
+### NetFlow
+
+~~~
+!@Cisco CSR1000v
+conf t
+ no flow record FLOW_RECORD
+ flow record FLOW_RECORD
+  match ipv4 source address
+  match ipv4 destination address
+  match transport source-port
+  match transport destination-port
+  match ipv4 protocol
+  match ipv4 version
+  match interface input
+  match interface output
+  collect counter bytes
+  collect counter packets
+  collect transport tcp flags
+  collect flow direction
+  collect timestamp absolute first
+  collect timestamp absolute last
+  !
+  collect ipv4 tos
+  collect ipv4 ttl
+  collect routing next-hop address ipv4
+  collect application name
+  collect routing source as
+  collect routing destination as
+ !
+ flow exporter FLOW_EXPORTER
+  destination 192.168.102.133
+  transport udp 2055
+  template data timeout 60
+  option interface-table timeout 60
+  option exporter-stats timeout 60
+ !
+ flow monitor FLOW_MONITOR
+  exporter FLOW_EXPORTER
+  record FLOW_RECORD
+ !
+ interface GigabitEthernet1
+  ip flow monitor FLOW_MONITOR input
+  ip flow monitor FLOW_MONITOR output
+  end
+~~~
+
+
+<br>
+<br>
+
+---
+&nbsp;
+
 
 ## Packet Filtering (L3 ACL)
 ~~~
@@ -1514,8 +1631,8 @@ REMOVE THE TUNNEL
 ~~~
 !@UTM-PH
 conf t
- ip route 22.22.22.192 255.255.255.192 208.8.8.12
- ip route 21.21.21.208 255.255.255.240 208.8.8.12
+ ip route 10.22.22.192 255.255.255.192 208.8.8.12
+ ip route 10.21.21.208 255.255.255.240 208.8.8.12
  end
 ~~~
 
@@ -1524,7 +1641,7 @@ conf t
 ~~~
 !@UTM-JP
 conf t
- ip route 11.11.11.96 255.255.255.224 208.8.8.11
+ ip route 10.11.11.96 255.255.255.224 208.8.8.11
  end
 ~~~
 
@@ -1660,7 +1777,7 @@ config t
   25 deny ip 208.8.8.0 0.0.0.255 208.8.8.0 0.0.0.255
   exit
  !
- ip nat inside source static tcp 21.21.21.211 80 208.8.8.12 8080
+ ip nat inside source static tcp 10.21.21.211 80 208.8.8.12 8080
   end
 ~~~
 
@@ -1671,8 +1788,8 @@ Access the Web: http://208.8.8.200:8080
 <br>
 
 ### Exercise: Set Portforwarding Rules for:
-- 208.8.8.12 8443 > 22.22.22.221 443
-- 208.8.8.12 2222 > 21.21.21.211 22
+- 208.8.8.12 8443 > 10.22.22.221 443
+- 208.8.8.12 2222 > 10.21.21.211 22
 
 <br>
 
